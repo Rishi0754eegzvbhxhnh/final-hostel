@@ -35,6 +35,12 @@ const paymentRoutes = require('./routes/payments');
 const roomRoutes = require('./routes/rooms');
 const aiRoutes = require('./routes/ai');
 const newsRoutes = require('./routes/news');
+const iotRoutes = require('./routes/iot');
+const financeRoutes = require('./routes/finance');
+const imageAnalysisRoutes = require('./routes/imageAnalysis');
+const hostelDiscoveryRoutes = require('./routes/hostelDiscovery');
+const sampleDataRoutes = require('./routes/sampleData');
+const notificationRoutes = require('./routes/notifications');
 
 
 app.use((req, res, next) => {
@@ -51,6 +57,12 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/iot', iotRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/image-analysis', imageAnalysisRoutes);
+app.use('/api/discovery', hostelDiscoveryRoutes);
+app.use('/api/sample', sampleDataRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 

@@ -1,15 +1,15 @@
 const axios = require('axios');
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 /**
- * Summarize news articles using OpenAI
+ * Summarize news articles using Gemini API
  * @param {Array} articles - Array of news articles
  * @param {string} format - Summary format ('bullet' or 'paragraph')
  */
 async function summarizeNews(articles, format = 'bullet') {
   try {
-    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'your_openai_api_key_here') {
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_openai_api_key_here') {
       // Fallback: Simple text summarization without AI
       return generateSimpleSummary(articles, format);
     }
@@ -24,37 +24,26 @@ async function summarizeNews(articles, format = 'bullet') {
       : `Provide a brief paragraph summarizing these news headlines:\n\n${newsText}`;
 
     const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
-        model: 'gpt-3.5-turbo',
-        messages: [
+        contents: [
           {
-            role: 'system',
-            content: 'You are a helpful news summarization assistant. Provide clear, concise summaries.'
-          },
-          {
-            role: 'user',
-            content: prompt
+            parts: [
+              { text: `System: You are a helpful news summarization assistant. Provide clear, concise summaries.\n\nUser: ${prompt}` }
+            ]
           }
-        ],
-        max_tokens: 300,
-        temperature: 0.7
+        ]
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
     return {
       success: true,
-      summary: response.data.choices[0].message.content,
+      summary: response.data.candidates[0].content.parts[0].text,
       articlesCount: articles.length
     };
   } catch (error) {
-    console.error('OpenAI API Error:', error.message);
+    console.error('Gemini API Error:', error.response ? error.response.data : error.message);
     // Fallback to simple summary
     return generateSimpleSummary(articles, format);
   }

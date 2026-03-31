@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { CreditCard, Wallet, QrCode, ShieldCheck, History, TrendingUp, Zap, Trophy, ArrowRight, Activity, Wallet2, Building2, Banknote, ShieldAlert, Sparkles, Receipt, DownloadCloud, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PaymentCountdown from '../components/PaymentCountdown';
 
 const GatewayCard = ({ icon: Icon, label, active, onClick }) => (
   <button 
@@ -46,6 +47,41 @@ const PaymentHub = () => {
   const [showCheckout, setShowCheckout] = useState(location.state?.autoOpenCheckout || false);
   const [stage, setStage] = useState('summary'); // 'summary' | 'processing' | 'success'
   const [totalPayable, setTotalPayable] = useState(location.state?.amount || 8500);
+  const [nextDueDate, setNextDueDate] = useState(new Date('2026-04-05'));
+  const [daysLeft, setDaysLeft] = useState(0);
+  const [totalPaid, setTotalPaid] = useState(0);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    const fetchPaymentStatus = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get('http://localhost:5000/api/payments/status', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.success) {
+          setNextDueDate(new Date(res.data.nextDueDate));
+          setDaysLeft(res.data.daysLeft);
+          setTotalPaid(res.data.totalPaid);
+        }
+      } catch (err) {
+        console.error('Failed to fetch payment status:', err);
+      }
+    };
+    fetchPaymentStatus();
+  }, [token]);
+
+  useEffect(() => {
+    const calculateDaysLeft = () => {
+      const today = new Date();
+      const due = new Date(nextDueDate);
+      const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      setDaysLeft(diff);
+    };
+    calculateDaysLeft();
+    const interval = setInterval(calculateDaysLeft, 60000);
+    return () => clearInterval(interval);
+  }, [nextDueDate]);
 
   const tx = [
     { title: 'Hostel Rent - April', date: 'Mar 12, 2026', amount: 8500, status: 'Success', type: 'rent' },
@@ -93,66 +129,69 @@ const PaymentHub = () => {
             
             <div className="w-full md:w-[350px] bg-slate-950/40 backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 space-y-6 text-center md:text-left">
                <div className="flex justify-between items-center opacity-60">
-                 <p className="text-[10px] font-black uppercase tracking-widest">Next Due Date</p>
-                 <History className="w-4 h-4" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">Next Due Date</p>
+                  <History className="w-4 h-4" />
                </div>
                <h3 className="text-4xl font-headline font-black tracking-tight uppercase leading-none">April 05, <br /> 2026</h3>
                <p className="text-indigo-200 text-sm font-medium italic opacity-80">"Early payments boost your Sustainable Score and unlock Hall of Fame points."</p>
+               <PaymentCountdown daysLeft={daysLeft} dueDate={nextDueDate} />
                <button 
                  onClick={() => setShowCheckout(true)}
                  className="w-full py-5 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-indigo-900/10 hover:bg-indigo-300 hover:text-white transition-all"
                >
                  Execute Settlement
                </button>
-            </div>
+             </div>
          </div>
       </section>
 
       {/* Main Payment Grid */}
       <main className="max-w-6xl mx-auto px-6 -mt-24 relative z-30">
         
-        {/* Statistics HUD */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-           <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200 flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-6">
-                 <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                    <History className="w-6 h-6" />
-                 </div>
-                 <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">+12% Savings</span>
-              </div>
-              <div>
-                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Total Paid (2026)</p>
-                 <p className="text-3xl font-headline font-black text-slate-900">₹84,200</p>
-              </div>
-           </div>
-           
-           <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200 flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-6">
-                 <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
-                    <Trophy className="w-6 h-6" />
-                 </div>
-                 <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Premium Tier</span>
-              </div>
-              <div>
-                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Neural Eco Points</p>
-                 <p className="text-3xl font-headline font-black text-slate-900">4,820</p>
-              </div>
-           </div>
+         {/* Statistics HUD */}
+         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
+            <PaymentCountdown daysLeft={daysLeft} dueDate={nextDueDate} />
+            
+            <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200 flex flex-col justify-between">
+               <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                     <History className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">+12% Savings</span>
+               </div>
+               <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Total Paid (2026)</p>
+                  <p className="text-3xl font-headline font-black text-slate-900">₹{totalPaid.toLocaleString()}</p>
+               </div>
+            </div>
+            
+            <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200 flex flex-col justify-between">
+               <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+                     <Trophy className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Premium Tier</span>
+               </div>
+               <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Neural Eco Points</p>
+                  <p className="text-3xl font-headline font-black text-slate-900">4,820</p>
+               </div>
+            </div>
 
-           <div className="bg-slate-950 p-8 rounded-[3rem] shadow-2xl shadow-indigo-950/20 text-white flex flex-col justify-between overflow-hidden relative group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 opacity-20 blur-[60px] group-hover:scale-125 transition-transform" />
-              <div className="relative z-10 flex justify-between items-start mb-6">
-                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white">
-                    <Activity className="w-6 h-6" />
-                 </div>
-                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Analysis Mode</span>
-              </div>
-              <div className="relative z-10">
-                 <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-1">Monthly Billing Trend</p>
-                 <p className="text-3xl font-headline font-black">Optimized</p>
-              </div>
-           </div>
-        </div>
+            <div className="bg-slate-950 p-8 rounded-[3rem] shadow-2xl shadow-indigo-950/20 text-white flex flex-col justify-between overflow-hidden relative group">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 opacity-20 blur-[60px] group-hover:scale-125 transition-transform" />
+               <div className="relative z-10 flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white">
+                     <Activity className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Analysis Mode</span>
+               </div>
+               <div className="relative z-10">
+                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-1">Monthly Billing Trend</p>
+                  <p className="text-3xl font-headline font-black">Optimized</p>
+               </div>
+            </div>
+         </div>
 
         {/* Transaction History */}
         <div className="space-y-8">

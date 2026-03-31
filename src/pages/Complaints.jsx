@@ -78,29 +78,55 @@ const Complaints = () => {
 
   const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.id]: e.target.value }));
 
+  const analyzeImage = async (base64Image) => {
+    try {
+      const res = await axios.post(`${BACKEND}/api/image-analysis/analyze-image`, {
+        image: base64Image
+      });
+      return res.data;
+    } catch (err) {
+      console.error('Image analysis failed:', err);
+      return {
+        isAI: false,
+        confidence: 0,
+        success: false
+      };
+    }
+  };
+
   const processFiles = useCallback((files) => {
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach(async (file) => {
       if (!file.type.startsWith('image/')) return;
       if (images.length >= 5) return;
       
       const reader = new FileReader();
-      reader.onload = (e) => {
-        // ML Simulation: Entropy check + Filename patterns
-        const isAIPattern = file.name.includes('generated') || file.name.includes('stable_diffusion') || Math.random() < 0.15;
-        const confidence = (85 + Math.random() * 10).toFixed(1);
-
-        setImages(prev => [...prev, {
+      reader.onload = async (e) => {
+        const imgData = {
           src: e.target.result,
           name: file.name,
-          isAI: isAIPattern,
-          confidence: confidence,
+          isAI: false,
+          confidence: 0,
           isScanning: true
-        }].slice(0, 5));
+        };
 
-        // Scanning delay
-        setTimeout(() => {
-          setImages(prevArr => prevArr.map(img => img.src === e.target.result ? { ...img, isScanning: false } : img));
-        }, 1500);
+        setImages(prev => [...prev, imgData].slice(0, 5));
+
+        try {
+          const result = await analyzeImage(e.target.result);
+          
+          setImages(prevArr => prevArr.map(img => 
+            img.src === e.target.result ? { 
+              ...img, 
+              isScanning: false,
+              isAI: result.isAI || false,
+              confidence: result.confidence || 0
+            } : img
+          ));
+        } catch {
+          setImages(prevArr => prevArr.map(img => 
+            img.src === e.target.result ? { ...img, isScanning: false } : img
+          ));
+        }
       };
       reader.readAsDataURL(file);
     });

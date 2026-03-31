@@ -12,7 +12,6 @@ const AriaAssistant = () => {
   const [context, setContext] = useState(null);
   const chatEndRef = useRef(null);
 
-  // Web Speech API
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
 
@@ -44,9 +43,9 @@ const AriaAssistant = () => {
   };
 
   const speak = (text) => {
+    if (!synthRef.current) return;
     const utterance = new SpeechSynthesisUtterance(text);
     const voices = synthRef.current.getVoices();
-    // Choose a nice female voice if available
     utterance.voice = voices.find(v => v.name.includes('Google') || v.name.includes('Female')) || voices[0];
     synthRef.current.speak(utterance);
   };
@@ -61,7 +60,7 @@ const AriaAssistant = () => {
       return `For today, ${context.food.today}, the menu is: Breakfast is ${menu.breakfast}, Lunch is ${menu.lunch}, and Dinner is ${menu.dinner}. Sounds delicious, right?`;
     }
 
-    if (q.includes('room') || q.includes('available') || q.includes('vacancy')) {
+    if (q.includes('room') || q.includes('available') || q.includes('vacancy') || q.includes('occupied')) {
       return `We currently have ${context.rooms.available} rooms available out of ${context.rooms.total}. Prices range from ${context.rooms.priceRange} per month.`;
     }
 
@@ -71,34 +70,34 @@ const AriaAssistant = () => {
 
     if (q.includes('laundry')) {
       const free = context.laundry?.available;
-      if (free === undefined) return "Laundry services are complimentary! You'll be able to see the status of machines in your dashboard soon.";
+      if (free === undefined) return "Laundry services are complimentary!";
       if (free === 0) return "All laundry machines are currently in use. I'd recommend checking back in about 20 minutes!";
       return `We have ${free} machines free right now. Better hurry before they're gone!`;
     }
 
     if (q.includes('dinner') || q.includes('food') || q.includes('eat')) {
       const menu = context.food.menu;
-      if (!menu) return "The menu for today hasn't been uploaded yet, but usually, it's something special on Sundays!";
+      if (!menu) return "The menu for today hasn't been uploaded yet.";
       return `For tonight's dinner, we have ${menu.dinner}. Sounds good, doesn't it?`;
     }
 
     if (q.includes('payment') || q.includes('fee') || q.includes('due') || q.includes('pay') || q.includes('wallet')) {
-      return "Currently, your total outstanding cycle balance is ₹12,450, and the next deadline is April 5th, 2026. \n\nWe currently support the following payment options:\n💳 **Cards / NFC** (Visa, MasterCard, RuPay)\n📱 **UPI / GPay** (Zero transaction fee)\n💼 **Internal Hostel Wallet** (Instant Settlement)\n\nYou can explicitly authorize these through the 'Payments' tab on your dashboard!";
+      return "You can check your outstanding balance in the Payments tab. We accept Cards, UPI, and Hostel Wallet.";
     }
 
     if (q.includes('who are you') || q.includes('aria')) {
-      return "I'm Aria, your intelligent hostel companion. I was designed to make your hostel life effortless and curated.";
+      return "I'm Aria, your intelligent hostel companion. I was designed to make your hostel life effortless.";
     }
 
-    if (q.includes('hostel') || q.includes('about this place') || q.includes('where am i')) {
-      return "This is the next-generation Student Intelligence Hostel! It's a curated network of academic excellence featuring modern smart living, AI-powered assistance, automated tracking, and premium facilities designed specifically for you.";
+    if (q.includes('hostel') || q.includes('about this place')) {
+      return "This is the next-generation Student Intelligence Hostel! It features modern smart living, AI-powered assistance, and premium facilities.";
     }
 
     if (q.includes('hello') || q.includes('hi ') || q.includes('hey')) {
       return "Hello there! I'm Aria. How can I make your day at the hostel better?";
     }
 
-    return "That's a great question! I'm mainly designed to help you with the menu, room bookings, and hostel updates. Is there something specific about those you'd like to know?";
+    return null;
   };
 
   const handleSend = async (text) => {
@@ -111,88 +110,81 @@ const AriaAssistant = () => {
 
     const q = msg.toLowerCase();
 
-    // 0. Intercept Global News Query
-    if (q.includes('news') || q.includes('update me') || q.includes('world update') || q.includes('what is happening')) {
+    if (q.includes('news') || q.includes('update me') || q.includes('world update')) {
       try {
         const res = await axios.get(`${BACKEND}/api/news/trending?limit=3`);
         if (res.data && res.data.success && res.data.articles) {
-          const articles = res.data.articles;
-          let newsText = "Here are the top global news updates circulating right now. ";
           let displayContent = "Here are the top global news updates:\n\n";
-          
-          articles.forEach((art, index) => {
-            newsText += `Story ${index + 1}: ${art.title}. `;
-            displayContent += `📰 **${art.title}**\n${art.description}\n\n`;
+          res.data.articles.forEach((art, index) => {
+            displayContent += `${index + 1}. ${art.title}\n${art.description || ''}\n\n`;
           });
-          newsText += "I have placed the summaries in the chat for you to read.";
-          
           setMessages(prev => [...prev, { role: 'ai', content: displayContent.trim() }]);
-          speak(newsText); // Speak the abbreviated text, display the full text
           setIsAIProcessing(false);
           return;
         }
       } catch (err) {
-        console.error('Failed to fetch AI news:', err);
-        const errorMsg = "I'm having trouble connecting to the global news network right now. Please try again later.";
-        setMessages(prev => [...prev, { role: 'ai', content: errorMsg }]);
-        speak(errorMsg);
+        console.error('Failed to fetch news:', err);
+        setMessages(prev => [...prev, { role: 'ai', content: "I'm having trouble connecting to the news network right now." }]);
         setIsAIProcessing(false);
         return;
       }
     }
 
-    // 1. Check Hostel Context first (Fast local response)
     const localResponse = processResponse(msg);
-    if (!localResponse.includes("That's a great question! I'm mainly designed to help you with the menu")) {
+    if (localResponse) {
       setTimeout(() => {
         setMessages(prev => [...prev, { role: 'ai', content: localResponse }]);
         speak(localResponse);
         setIsAIProcessing(false);
-      }, 600);
+      }, 300);
       return;
     }
 
-    // 2. Global AI Mode (External LLM API for general knowledge)
     try {
-      // Connect to genuine OpenAI Architecture
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY_HERE';
+      const rawKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const geminiKey = rawKey ? rawKey.replace(/["']/g, '').trim() : '';
       
-      if (apiKey === 'YOUR_OPENAI_API_KEY_HERE') {
-         console.warn("Please add your OpenAI API Key to use the Global Intelligence mode.");
-         const fakeResponse = "My connection to the OpenAI mainframe requires an API Key. Please insert your VITE_OPENAI_API_KEY into the environment configuration to enable my advanced neural network!";
-         setMessages(prev => [...prev, { role: 'ai', content: fakeResponse }]);
-         speak(fakeResponse);
-         setIsAIProcessing(false);
-         return;
+      if (!geminiKey) {
+        const noKeyMsg = "I'm running in basic mode. For full AI capabilities, please add your Gemini API key to the .env file as VITE_GEMINI_API_KEY.";
+        setMessages(prev => [...prev, { role: 'ai', content: noKeyMsg }]);
+        setIsAIProcessing(false);
+        return;
       }
 
       const res = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiKey}`,
         {
-          model: "gpt-3.5-turbo",
-          messages: [
-            { role: "system", content: "You are Aria, an intelligent, extremely polite, and helpful AI assistant for a modern futuristic student hostel environment." },
-            { role: "user", content: msg }
-          ],
-          max_tokens: 150,
-          temperature: 0.7
+          contents: [{ parts: [{ text: `You are Aria, a helpful AI assistant for a student hostel. Keep responses concise. User asks: ${msg}` }] }]
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
+        { headers: { 'Content-Type': 'application/json' } }
       );
       
-      const response = res.data.choices[0].message.content;
-      setMessages(prev => [...prev, { role: 'ai', content: response }]);
-      speak(response);
+      if (res.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const response = res.data.candidates[0].content.parts[0].text;
+        setMessages(prev => [...prev, { role: 'ai', content: response }]);
+        speak(response);
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (err) {
-      console.error("OpenAI Error:", err);
-      const fallback = "I'm currently connected to a high-speed orbital satellite for deep thinking. It seems I hit a minor frequency interference, but I can tell you everything about the hostel locally!";
-      setMessages(prev => [...prev, { role: 'ai', content: fallback }]);
-      speak(fallback);
+      console.error("AI Error:", err);
+      
+      let errorMsg = "I'm having trouble connecting to the AI service. Please try again.";
+      
+      if (err.response?.data?.error) {
+        const errorInfo = err.response.data.error;
+        if (errorInfo.message?.includes('API_KEY')) {
+          errorMsg = "Your API key appears to be invalid. Please check your VITE_GEMINI_API_KEY in the .env file.";
+        } else if (errorInfo.message?.includes('quota')) {
+          errorMsg = "API quota exceeded. Please try again later.";
+        } else {
+          errorMsg = `AI service error: ${errorInfo.message || 'Unknown error'}`;
+        }
+      } else if (err.message === 'Network Error') {
+        errorMsg = "Network error. Please check your internet connection.";
+      }
+      
+      setMessages(prev => [...prev, { role: 'ai', content: errorMsg }]);
     } finally {
       setIsAIProcessing(false);
     }
@@ -214,7 +206,6 @@ const AriaAssistant = () => {
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] font-body">
-      {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-16 h-16 rounded-full bg-primary shadow-2xl flex items-center justify-center text-white hover:scale-110 active:scale-90 transition-all group overflow-hidden"
@@ -229,10 +220,8 @@ const AriaAssistant = () => {
         )}
       </button>
 
-      {/* Assistant Modal */}
       {isOpen && (
         <div className="absolute bottom-20 right-0 w-[400px] h-[550px] bg-white rounded-3xl shadow-[0_32px_80px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-10">
-          {/* Header */}
           <div className="bg-primary p-6 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
@@ -251,7 +240,6 @@ const AriaAssistant = () => {
             </button>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-surface-container-lowest">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
@@ -278,7 +266,6 @@ const AriaAssistant = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Input */}
           <div className="p-4 bg-white border-t border-outline-variant/10">
             <div className="relative flex items-center">
               <input

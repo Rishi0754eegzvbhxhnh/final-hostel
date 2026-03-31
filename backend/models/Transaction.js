@@ -29,6 +29,8 @@ const transactionSchema = new mongoose.Schema({
     enum: ['tuition', 'residential', 'meal_plan', 'other'],
     required: true,
   },
+  room: { type: String, default: null },
+  studentName: { type: String, default: null },
 }, {
   timestamps: true,
 });

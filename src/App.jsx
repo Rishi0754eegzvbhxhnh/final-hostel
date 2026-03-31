@@ -23,6 +23,12 @@ import EventCalendar from './pages/EventCalendar';
 import DigitalSecurity from './pages/DigitalSecurity';
 import FoodMenu from './pages/FoodMenu';
 import RoomBooking from './pages/RoomBooking';
+import HostelSmartOS from './pages/HostelSmartOS';
+import HostelDiscovery from './pages/HostelDiscovery';
+import FacilitiesPage from './pages/FacilitiesPage';
+import RoomGallery from './pages/RoomGallery';
+import SampleDashboard from './pages/SampleDashboard';
+import HostelList from './pages/HostelList';
 
 function App() {
   return (
@@ -54,6 +60,14 @@ function App() {
         <Route path="/feedback" element={<FeedbackHub />} />
         <Route path="/events" element={<EventCalendar />} />
         <Route path="/security" element={<DigitalSecurity />} />
+        <Route path="/smart-os" element={<HostelSmartOS />} />
+        <Route path="/discovery" element={<HostelDiscovery />} />
+        
+        {/* Sample Data Routes */}
+        <Route path="/facilities" element={<FacilitiesPage />} />
+        <Route path="/room-gallery" element={<RoomGallery />} />
+        <Route path="/sample-dashboard" element={<SampleDashboard />} />
+        <Route path="/hostels" element={<HostelList />} />
       </Routes>
     </Router>
   );

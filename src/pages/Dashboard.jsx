@@ -30,6 +30,7 @@ const Dashboard = () => {
   const [showCalendar, setShowCalendar] = useState(null);
   const [newsArticles, setNewsArticles] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [newsCategory, setNewsCategory] = useState('general');
   const [snackbar, setLocalSnackbar] = useState(null);
   const [showUISnackbar, setShowUISnackbar] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,20 +62,48 @@ const Dashboard = () => {
   });
 
   // Fetch news articles
-  const fetchNews = async () => {
+  const fetchNews = async (category = newsCategory) => {
+    setNewsLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/news/trending?limit=3');
-      if (response.data.success) {
+      const response = await axios.get(`http://localhost:5000/api/news/trending?limit=6&category=${category}`);
+      if (response.data.success && response.data.articles?.length > 0) {
         setNewsArticles(response.data.articles);
-      }
+      } else throw new Error('no articles');
     } catch (error) {
-      console.error('Failed to fetch news:', error);
-      // Fallback to demo data
-      setNewsArticles([
-        { title: "Global Climate Summit Reaches Historic Agreement", description: "World leaders unite on carbon reduction targets", source: "Reuters" },
-        { title: "Tech Innovation Drives Economic Growth", description: "AI and renewable energy sectors show strong performance", source: "TechNews" },
-        { title: "Healthcare Breakthrough in Disease Prevention", description: "New research shows promising results in early detection", source: "MedDaily" }
-      ]);
+      // Richer fallback data per category
+      const fallbacks = {
+        general: [
+          { title: 'Global Climate Summit Reaches Historic Agreement', description: 'World leaders unite on landmark carbon reduction targets for 2030.', source: 'Reuters', category: 'World' },
+          { title: 'UN Passes New Digital Privacy Resolution', description: 'Member nations agree on strong data protection standards globally.', source: 'AP News', category: 'World' },
+          { title: 'G20 Economic Outlook Improves Amid Recovery Signs', description: 'Global GDP expected to grow 3.4% this year per IMF projections.', source: 'Bloomberg', category: 'Economy' },
+          { title: 'Humanitarian Aid Reaches Record 100 Countries', description: 'International aid organizations report largest distribution in history.', source: 'UNHCR', category: 'World' },
+        ],
+        technology: [
+          { title: 'AI Model Achieves Human-Level Reasoning in Benchmark Tests', description: 'Latest LLM surpasses expectations in complex multi-step problem solving.', source: 'TechCrunch', category: 'AI' },
+          { title: 'India Launches First Quantum Computing Centre', description: 'IIT Delhi and ISRO collaborate on nation-first quantum research hub.', source: 'NDTV Tech', category: 'Tech' },
+          { title: 'Meta Unveils Next-Gen AR Glasses with Neural Interface', description: 'The glasses can detect subtle micro-expressions for real-time emotion context.', source: 'The Verge', category: 'Tech' },
+          { title: 'Open-Source AI Surpasses GPT in Code Generation', description: 'Community-driven model tops leaderboards for programming tasks.', source: 'GitHub Blog', category: 'AI' },
+        ],
+        science: [
+          { title: 'NASA Voyager 1 Sends New Data from Interstellar Space', description: "After 46 years, engineers restore full functionality to Voyager's systems.", source: 'NASA', category: 'Space' },
+          { title: 'CRISPR Breakthrough Cures Sickle Cell Disease in Trial', description: 'Gene-editing therapy shows 100% efficacy in Phase 3 clinical trials.', source: 'Nature', category: 'Health' },
+          { title: 'Scientists Discover New Ocean Layer Below the Abyss', description: 'A previously unknown water layer found at 12,000m depth in Pacific trench.', source: 'Science Daily', category: 'Ocean' },
+          { title: 'Fusion Energy Record Broken — Net Gain Sustained 8 Seconds', description: 'NIF achieves longest-ever sustained fusion reaction with net energy gain.', source: 'Phys.org', category: 'Energy' },
+        ],
+        sports: [
+          { title: 'India Wins ICC Trophy in Epic Last-Ball Thriller', description: 'The national team clinched the championship with a stunning boundary on the final delivery.', source: 'Cricinfo', category: 'Cricket' },
+          { title: 'Neeraj Chopra Sets New Diamond League Record', description: 'Indian javelin star throws 90.23m, a new all-time record in Diamond League history.', source: 'ESPN', category: 'Athletics' },
+          { title: 'IPL 2025 Season Opens with Record 400M Viewers', description: 'Viewership breaks all records as streaming platforms see massive spikes.', source: 'BCCI', category: 'Cricket' },
+          { title: 'FIFA 2026 Host City Preparations in Full Swing', description: 'USA, Canada and Mexico complete 80% of infrastructure for tournament.', source: 'FIFA', category: 'Football' },
+        ],
+        india: [
+          { title: 'India GDP Growth Forecast Raised to 7.2% for FY2026', description: 'IMF upgrades India as the world fastest-growing major economy.', source: 'Economic Times', category: 'Economy' },
+          { title: 'New National Education Policy Rolled Out Across States', description: 'NEP 2025 brings coding, AI literacy and mother-tongue instruction from Grade 1.', source: 'The Hindu', category: 'Education' },
+          { title: 'Chandrayaan-4 Mission Cleared for 2025 Launch', description: 'ISRO confirms sample return mission timeline with JAXA collaboration.', source: 'ISRO', category: 'Space' },
+          { title: 'India Tops Global Fintech Adoption Index for 3rd Year', description: 'UPI processes over 15 billion transactions per month — a global record.', source: 'RBI', category: 'Finance' },
+        ],
+      };
+      setNewsArticles(fallbacks[category] || fallbacks.general);
     }
     setNewsLoading(false);
   };
@@ -99,28 +128,53 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, [location]);
 
-  // Fetch food menu
+  const DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  const [weekMenu, setWeekMenu] = useState(null);
+
+  // Fetch week menu from sampleData API
   useEffect(() => {
-    const fetchMenu = async () => {
-      try {
-        const res = await axios.get('http://127.0.0.1:5000/api/food');
-        setMenuItems(res.data.length > 0 ? res.data : fallbackMenu);
-      } catch {
-        setMenuItems(fallbackMenu);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMenu();
+    fetch('http://localhost:5000/api/sample/menu')
+      .then(r => r.json())
+      .then(data => { if (data.success) setWeekMenu(data.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const fallbackMenu = [
-    { day: 'Monday', breakfast: 'Avocado Toast', lunch: 'Quinoa Bowl', dinner: 'Grilled Salmon' },
-    { day: 'Tuesday', breakfast: 'Granola Parfait', lunch: 'Specialty Burger', dinner: 'Chef Selection' },
-    { day: 'Wednesday', breakfast: 'Fruit Bowl', lunch: 'Caesar Salad', dinner: 'Margherita Pizza' },
-    { day: 'Thursday', breakfast: 'Oatmeal & Nuts', lunch: 'Creamy Pasta', dinner: 'Tomato Soup' },
-    { day: 'Friday', breakfast: 'Berry Smoothie', lunch: 'Rice & Curry', dinner: 'Cheese Burger' },
-  ];
+  // Build the 7-day week array anchored on the real calendar
+  const todayDate = new Date();
+  const todayDayIdx = todayDate.getDay(); // 0=Sun
+
+  // Build week: Mon to Sun of the CURRENT week
+  const weekDays = [1,2,3,4,5,6,0].map(dayIdx => {
+    const diff = dayIdx - todayDayIdx;
+    const d = new Date(todayDate);
+    d.setDate(todayDate.getDate() + diff);
+    const dayName = DAYS[dayIdx];
+    const menu = weekMenu?.[dayName];
+    return {
+      dayName: d.toLocaleDateString('en-IN', { weekday: 'short' }).toUpperCase(),
+      date: d.getDate(),
+      month: d.toLocaleDateString('en-IN', { month: 'short' }),
+      isToday: dayIdx === todayDayIdx,
+      breakfast: menu?.breakfast?.items?.slice(0,2).join(', ') || '—',
+      lunch: menu?.lunch?.items?.slice(0,2).join(', ') || '—',
+      dinner: menu?.dinner?.items?.slice(0,2).join(', ') || '—',
+      satMenu: weekMenu?.saturday,
+      sunMenu: weekMenu?.sunday,
+    };
+  });
+
+  const saturdayMenu = weekMenu?.saturday;
+  const sundayMenu = weekMenu?.sunday;
+
+  // Weekend date numbers
+  const getWeekendDates = () => {
+    const sat = new Date(todayDate);
+    sat.setDate(todayDate.getDate() + (6 - todayDayIdx));
+    const sun = new Date(todayDate);
+    sun.setDate(todayDate.getDate() + (7 - todayDayIdx) % 7 || 7);
+    return `${sat.getDate()}–${sun.getDate()}`;
+  };
 
   const fmt = (d) => d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set';
 
@@ -183,7 +237,7 @@ const Dashboard = () => {
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen pb-24 md:pb-0 pt-20">
-      <Header activePage="Food" />
+      <Header activePage="Home" />
 
       {/* SECONDARY NAVIGATION BAR (SNACK BAR) */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-[72px] z-40 px-6 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hidden md:block">
@@ -373,53 +427,66 @@ const Dashboard = () => {
               <span className="material-symbols-outlined animate-spin text-primary text-4xl">sync</span>
             </div>
           ) : (
-            menuItems.map((item, idx) => (
-              <div key={item.day || idx} className={`rounded-xl p-5 shadow-sm border-t-4 transition-all hover:scale-[1.02] ${idx === 0 ? 'bg-surface-container-lowest border-primary' : 'bg-surface-container-low border-outline-variant/30'} lg:col-span-1`}>
-                <div className="mb-6">
-                  <span className={`block font-label text-[10px] font-bold uppercase tracking-widest mb-1 ${idx === 0 ? 'text-primary' : 'text-on-surface-variant'}`}>{item.day}</span>
-                  <span className={`text-3xl font-headline font-extrabold ${idx === 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>{23 + idx}</span>
+            weekDays.slice(0,5).map((item, idx) => (
+              <div key={idx} className={`rounded-xl p-5 shadow-sm border-t-4 transition-all hover:scale-[1.02] ${item.isToday ? 'bg-surface-container-lowest border-primary ring-2 ring-primary/20' : 'bg-surface-container-low border-outline-variant/30'} lg:col-span-1`}>
+                <div className="mb-4">
+                  <span className={`block font-label text-[10px] font-bold uppercase tracking-widest mb-0.5 ${item.isToday ? 'text-primary' : 'text-on-surface-variant'}`}>{item.dayName}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-3xl font-headline font-extrabold ${item.isToday ? 'text-on-surface' : 'text-on-surface-variant'}`}>{item.date}</span>
+                    <span className="text-xs text-slate-400 font-bold">{item.month}</span>
+                  </div>
+                  {item.isToday && <span className="inline-block mt-1 px-2 py-0.5 bg-primary text-white text-[9px] font-black rounded-full uppercase tracking-widest">Today</span>}
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <span className="block font-label text-[9px] font-extrabold text-secondary tracking-widest uppercase mb-2">Breakfast</span>
-                    <p className="text-xs font-semibold leading-snug">{item.breakfast}</p>
+                    <span className="block font-label text-[9px] font-extrabold text-secondary tracking-widest uppercase mb-1.5">🌅 Breakfast</span>
+                    <p className="text-xs font-semibold leading-snug text-slate-700">{item.breakfast}</p>
                   </div>
-                  <div className="pt-4 border-t border-surface-variant">
-                    <span className="block font-label text-[9px] font-extrabold text-secondary tracking-widest uppercase mb-2">Lunch</span>
-                    <p className="text-xs font-semibold leading-snug">{item.lunch}</p>
+                  <div className="pt-3 border-t border-surface-variant">
+                    <span className="block font-label text-[9px] font-extrabold text-secondary tracking-widest uppercase mb-1.5">☀️ Lunch</span>
+                    <p className="text-xs font-semibold leading-snug text-slate-700">{item.lunch}</p>
                   </div>
-                  <div className="pt-4 border-t border-surface-variant">
-                    <span className="block font-label text-[9px] font-extrabold text-secondary tracking-widest uppercase mb-2">Dinner</span>
-                    <p className="text-xs font-semibold leading-snug">{item.dinner}</p>
+                  <div className="pt-3 border-t border-surface-variant">
+                    <span className="block font-label text-[9px] font-extrabold text-secondary tracking-widest uppercase mb-1.5">🌙 Dinner</span>
+                    <p className="text-xs font-semibold leading-snug text-slate-700">{item.dinner}</p>
                   </div>
                 </div>
               </div>
             ))
           )}
 
+          {/* Weekend Card */}
           <div className="md:col-span-2 lg:col-span-2 bg-gradient-to-br from-primary-container to-primary rounded-xl p-6 text-white overflow-hidden relative group">
             <div className="absolute -right-10 -bottom-10 opacity-10 scale-150 transition-transform group-hover:rotate-12">
               <span className="material-symbols-outlined text-[120px]">restaurant</span>
             </div>
-            <div className="flex justify-between items-start mb-10">
+            <div className="flex justify-between items-start mb-6">
               <div>
                 <span className="block font-label text-[10px] font-bold text-primary-fixed uppercase tracking-[0.3em] mb-1">Weekend Focus</span>
-                <span className="text-3xl font-headline font-extrabold">28—29</span>
+                <span className="text-3xl font-headline font-extrabold">{getWeekendDates()}</span>
               </div>
               <span className="material-symbols-outlined text-secondary-fixed" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
             </div>
-            <div className="grid grid-cols-2 gap-8 relative z-10">
+            <div className="grid grid-cols-2 gap-4 relative z-10 text-sm mb-3">
               <div>
-                <span className="block font-label text-[9px] font-extrabold text-primary-fixed tracking-widest uppercase mb-2">Sat Brunch</span>
-                <p className="text-sm font-bold">Eggs Benedict Buffet</p>
+                <span className="block font-label text-[9px] font-extrabold text-primary-fixed tracking-widest uppercase mb-1.5">Sat Brunch</span>
+                <p className="font-bold text-white/90">{saturdayMenu?.breakfast?.items?.[0] || 'Special Brunch'}</p>
               </div>
               <div>
-                <span className="block font-label text-[9px] font-extrabold text-primary-fixed tracking-widest uppercase mb-2">Sun Roast</span>
-                <p className="text-sm font-bold">Slow-Roasted Rib Eye</p>
+                <span className="block font-label text-[9px] font-extrabold text-primary-fixed tracking-widest uppercase mb-1.5">Sun Special</span>
+                <p className="font-bold text-white/90">{sundayMenu?.lunch?.items?.[0] || 'Sunday Feast'}</p>
+              </div>
+              <div>
+                <span className="block font-label text-[9px] font-extrabold text-primary-fixed tracking-widest uppercase mb-1.5">Sat Dinner</span>
+                <p className="font-bold text-white/90">{saturdayMenu?.dinner?.items?.[0] || 'Kadai Paneer'}</p>
+              </div>
+              <div>
+                <span className="block font-label text-[9px] font-extrabold text-primary-fixed tracking-widest uppercase mb-1.5">Sun Dinner</span>
+                <p className="font-bold text-white/90">{sundayMenu?.dinner?.items?.[0] || 'Pasta'}</p>
               </div>
             </div>
-            <Link to="/food-menu" className="mt-8 block text-center w-full py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-bold uppercase tracking-widest hover:bg-white/20 transition-colors">
-              View Full Weekend Menu
+            <Link to="/food-menu" className="mt-4 block text-center w-full py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-bold uppercase tracking-widest hover:bg-white/20 transition-colors">
+              View Full Mess Menu →
             </Link>
           </div>
         </div>
@@ -576,7 +643,7 @@ const Dashboard = () => {
 
         {/* Global News Hub & Daily Digest */}
         <div id="section-news" className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-20 scroll-mt-32">
-          
+
           {/* Daily Digest */}
           <div className="lg:col-span-4 bg-primary-container p-8 rounded-[2.5rem] flex flex-col justify-between shadow-sm border border-primary/10">
             <div>
@@ -584,8 +651,7 @@ const Dashboard = () => {
                 <span className="material-symbols-outlined text-primary text-3xl">local_fire_department</span>
                 <h4 className="font-headline font-black text-2xl text-primary uppercase tracking-tighter">Daily Digest</h4>
               </div>
-              <p className="text-on-primary-container text-sm mb-6 font-medium">Your personalized morning briefing — hostel updates & news.</p>
-              
+              <p className="text-on-primary-container text-sm mb-6 font-medium">Your personalized morning briefing — hostel updates &amp; news.</p>
               <ul className="space-y-4">
                 <li className="bg-white/40 p-5 rounded-[1.5rem] border border-white/50 hover:bg-white/60 transition-all cursor-pointer">
                   <span className="block font-label text-[10px] font-black text-primary uppercase tracking-widest mb-1">Notice</span>
@@ -606,88 +672,130 @@ const Dashboard = () => {
             </button>
           </div>
 
-          {/* Global News */}
+          {/* Global News - ENHANCED */}
           <div className="lg:col-span-8 bg-surface-container-lowest p-8 rounded-[2.5rem] border border-outline-variant/30 shadow-[0_10px_40px_rgba(0,0,0,0.02)]">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center">
-                    <span className="material-symbols-outlined text-secondary">public</span>
-                 </div>
-                 <div>
-                   <h3 className="font-headline font-bold text-2xl text-on-surface tracking-tighter">Global News Hub</h3>
-                   <p className="font-body text-sm text-outline">Real-time worldwide developments</p>
-                 </div>
+                <div className="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center">
+                  <span className="material-symbols-outlined text-secondary">public</span>
+                </div>
+                <div>
+                  <h3 className="font-headline font-bold text-2xl text-on-surface tracking-tighter">Global News Hub</h3>
+                  <p className="font-body text-sm text-outline">Real-time worldwide developments</p>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                 <button className="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase rounded-xl tracking-widest">General</button>
-                 <button className="px-4 py-2 bg-surface-container-low text-on-surface-variant text-[10px] font-black uppercase rounded-xl tracking-widest hover:bg-surface-container-high transition-colors border border-outline-variant/50">Tech</button>
-                 <button className="px-4 py-2 bg-surface-container-low text-on-surface-variant text-[10px] font-black uppercase rounded-xl tracking-widest hover:bg-surface-container-high transition-colors border border-outline-variant/50">Science</button>
-              </div>
+              <button
+                onClick={() => fetchNews(newsCategory)}
+                disabled={newsLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-xs font-black uppercase tracking-wider hover:bg-primary/20 transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm" style={{ fontSize: '16px' }}>refresh</span>
+                {newsLoading ? 'Loading...' : 'Refresh'}
+              </button>
             </div>
 
-            <div className="space-y-4">
-               {newsLoading ? (
-                 <div className="flex items-center justify-center py-8">
-                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                   <span className="ml-3 text-sm text-outline">Loading latest news...</span>
-                 </div>
-               ) : (
-                 newsArticles.map((article, index) => {
-                   const icons = ['language', 'memory', 'science'];
-                   const colors = [
-                     { bg: 'bg-blue-50', text: 'text-blue-500', category: 'text-primary' },
-                     { bg: 'bg-emerald-50', text: 'text-emerald-500', category: 'text-emerald-600' },
-                     { bg: 'bg-purple-50', text: 'text-purple-500', category: 'text-purple-600' }
-                   ];
-                   const style = colors[index % colors.length];
-                   
-                   return (
-                     <div key={index} className="flex items-center gap-6 p-5 rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-low hover:bg-white transition-all cursor-pointer group"
-                          onClick={() => article.url && window.open(article.url, '_blank')}>
-                        <div className={`shrink-0 w-16 h-16 ${style.bg} ${style.text} rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform`}>
-                           <span className="material-symbols-outlined text-3xl">{icons[index % icons.length]}</span>
-                        </div>
-                        <div className="flex-1">
-                           <div className="flex gap-2 items-center mb-1">
-                              <span className={`text-[9px] font-black tracking-widest ${style.category} uppercase`}>
-                                {article.category || 'World'} • {article.source}
-                              </span>
-                              <span className="text-[9px] font-bold text-outline">
-                                {new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                           </div>
-                           <h4 className="font-headline font-black text-lg mb-1 leading-snug text-on-surface">
-                             {article.title}
-                           </h4>
-                           <p className="text-xs text-on-surface-variant font-medium">
-                             {article.description}
-                           </p>
-                        </div>
-                     </div>
-                   );
-                 })
-               )}
-
-               {/* News Item 3 */}
-               <div className="flex items-center gap-6 p-5 rounded-[1.5rem] border border-outline-variant/20 bg-surface-container-low hover:bg-white transition-all cursor-pointer group">
-                  <div className="shrink-0 w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                     <span className="material-symbols-outlined text-3xl">sports_baseball</span>
-                  </div>
-                  <div className="flex-1">
-                     <div className="flex gap-2 items-center mb-1">
-                        <span className="text-[9px] font-black tracking-widest text-rose-600 uppercase">Sports • Cricinfo</span>
-                        <span className="text-[9px] font-bold text-outline">8 hrs ago</span>
-                     </div>
-                     <h4 className="font-headline font-black text-lg mb-1 leading-snug text-on-surface">India Wins ICC Trophy in Epic Last-Ball Thriller</h4>
-                     <p className="text-xs text-on-surface-variant font-medium">The national team clinched the championship with a stunning boundary on the final delivery.</p>
-                  </div>
-               </div>
+            {/* Category tabs */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {[
+                { id: 'general',    label: '🌐 General' },
+                { id: 'technology', label: '💻 Tech' },
+                { id: 'science',    label: '🔬 Science' },
+                { id: 'sports',     label: '🏆 Sports' },
+                { id: 'india',      label: '🇮🇳 India' },
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => { setNewsCategory(cat.id); fetchNews(cat.id); }}
+                  className={`px-4 py-2 text-[11px] font-black uppercase rounded-xl tracking-widest transition-all ${
+                    newsCategory === cat.id
+                      ? 'bg-primary text-white shadow-md shadow-primary/20'
+                      : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high border border-outline-variant/50'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
-            
-            <button className="mt-6 w-full py-4 text-primary font-black text-xs uppercase tracking-widest hover:underline text-center"
-                    onClick={fetchNews}>
-               {newsLoading ? 'Loading...' : 'Refresh Global News'}
-            </button>
+
+            {/* Articles */}
+            <div className="space-y-3">
+              {newsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                  <span className="ml-3 text-sm text-outline">Fetching latest news...</span>
+                </div>
+              ) : newsArticles.length === 0 ? (
+                <div className="text-center py-12 text-on-surface-variant">
+                  <span className="material-symbols-outlined text-4xl block mb-2">newspaper</span>
+                  <p className="font-semibold">No articles available.</p>
+                </div>
+              ) : (
+                newsArticles.map((article, index) => {
+                  const palettes = [
+                    { bg: 'bg-blue-50',   icon: 'bg-blue-100 text-blue-600',   cat: 'text-blue-700',   sym: 'language' },
+                    { bg: 'bg-emerald-50',icon: 'bg-emerald-100 text-emerald-600', cat: 'text-emerald-700', sym: 'memory' },
+                    { bg: 'bg-violet-50', icon: 'bg-violet-100 text-violet-600', cat: 'text-violet-700',  sym: 'science' },
+                    { bg: 'bg-rose-50',   icon: 'bg-rose-100 text-rose-600',    cat: 'text-rose-700',   sym: 'sports_baseball' },
+                    { bg: 'bg-amber-50',  icon: 'bg-amber-100 text-amber-600',  cat: 'text-amber-700',  sym: 'flag' },
+                    { bg: 'bg-cyan-50',   icon: 'bg-cyan-100 text-cyan-600',    cat: 'text-cyan-700',   sym: 'public' },
+                  ];
+                  const p = palettes[index % palettes.length];
+                  return (
+                    <div
+                      key={index}
+                      className={`flex items-start gap-4 p-4 rounded-2xl border border-outline-variant/20 ${p.bg} hover:shadow-md transition-all cursor-pointer group`}
+                      onClick={() => article.url && window.open(article.url, '_blank')}
+                    >
+                      <div className={`shrink-0 w-12 h-12 ${p.icon} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <span className="material-symbols-outlined">{p.sym}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className={`text-[9px] font-black tracking-widest ${p.cat} uppercase`}>
+                            {article.category || 'World'} · {article.source}
+                          </span>
+                          {article.publishedAt && (
+                            <span className="text-[9px] font-bold text-outline">
+                              {new Date(article.publishedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-headline font-black text-sm md:text-base mb-1 leading-snug text-on-surface line-clamp-2">
+                          {article.title}
+                        </h4>
+                        <p className="text-xs text-on-surface-variant font-medium line-clamp-1">
+                          {article.description}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 shrink-0">
+                        <button
+                          onClick={e => { e.stopPropagation(); showSnackbarAction('Article bookmarked!', 'bookmark'); }}
+                          className="w-8 h-8 rounded-lg bg-white/70 hover:bg-white flex items-center justify-center transition-colors"
+                          title="Bookmark"
+                        >
+                          <span className="material-symbols-outlined text-sm text-on-surface-variant" style={{fontSize:'16px'}}>bookmark</span>
+                        </button>
+                        {article.url && (
+                          <button
+                            onClick={e => { e.stopPropagation(); window.open(article.url, '_blank'); }}
+                            className="w-8 h-8 rounded-lg bg-white/70 hover:bg-white flex items-center justify-center transition-colors"
+                            title="Open article"
+                          >
+                            <span className="material-symbols-outlined text-sm text-on-surface-variant" style={{fontSize:'16px'}}>open_in_new</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-6 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-between">
+              <p className="text-xs text-outline font-medium">Powered by live news API · Updated every 10 min</p>
+              <Link to="/smart-living" className="text-primary text-xs font-black uppercase tracking-wider hover:underline">Full News Hub →</Link>
+            </div>
           </div>
         </div>
 
